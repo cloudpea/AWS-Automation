@@ -1,0 +1,1019 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Amazon VPC with Public Subnets, Lambda Subnets & RDS Subnets across 3 Availability Zones",
+    "Parameters": {
+        "ResourcePrefix": {
+            "Type": "String",
+            "Default": "CloudPea",
+            "Description": "A Prefix for all Deloyed Resources."
+        },
+        "VPCCIDR": {
+            "Type": "String",
+            "Default": "10.0.0.0/16",
+            "Description": "IP CIDR Block for the VPC."
+        },
+        "PublicSubnetCIDRs": {
+            "Type": "CommaDelimitedList",
+            "Default": "10.0.10.0/24, 10.0.11.0/24, 10.0.12.0/24",
+            "Description": "A Comma-Delimitted list of 3 CIDR Blocks for the Public Subnets."
+        },
+        "LambdaSubnetCIDRs": {
+            "Type": "CommaDelimitedList",
+            "Default": "10.0.20.0/24, 10.0.21.0/24, 10.0.22.0/24",
+            "Description": "A Comma-Delimitted list of 3 CIDR Blocks for the Lambda Subnets."
+        },
+        "RDSSubnetCIDRs": {
+            "Type": "CommaDelimitedList",
+            "Default": "10.0.30.0/24, 10.0.31.0/24, 10.0.32.0/24",
+            "Description": "A Comma-Delimitted list of 3 CIDR Blocks for the RDS Subnets."
+        }
+    },
+    "Resources": {
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "VPCCIDR"
+                },
+                "EnableDnsSupport": true,
+                "EnableDnsHostnames": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_VPC"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_IGW"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "InternetGatewayAttachment": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "PublicSubnet1a": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Ref": "PublicSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Public_Subnet1a"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "PublicSubnet1b": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Ref": "PublicSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Public_Subnet1b"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "PublicSubnet1c": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "PublicSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Public_Subnet1c"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "NATGatewayEIP1a": {
+            "Type": "AWS::EC2::EIP",
+            "DependsOn": "PublicSubnet1a",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "NATGateway1a": {
+            "Type": "AWS::EC2::NatGateway",
+            "DependsOn": "NATGatewayEIP1a",
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATGatewayEIP1a",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1a"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_NAT_Gateway1a"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "NATGatewayEIP1b": {
+            "Type": "AWS::EC2::EIP",
+            "DependsOn": "PublicSubnet1b",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "NATGateway1b": {
+            "Type": "AWS::EC2::NatGateway",
+            "DependsOn": "NATGatewayEIP1b",
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATGatewayEIP1b",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1b"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_NAT_Gateway1b"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "NATGatewayEIP1c": {
+            "Type": "AWS::EC2::EIP",
+            "DependsOn": "PublicSubnet1c",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "NATGateway1c": {
+            "Type": "AWS::EC2::NatGateway",
+            "DependsOn": "NATGatewayEIP1c",
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATGatewayEIP1c",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1c"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_NAT_Gateway1c"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "PublicSubnetRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Public_RouteTable"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "PublicSubnetRouteEntry": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "InternetGatewayAttachment",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicSubnetRouteTable"
+                }
+            }
+        },
+        "PublicSubnetRouteTableAssociation1a": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicSubnetRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1a"
+                }
+            }
+        },
+        "PublicSubnetRouteTableAssociation1b": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicSubnetRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1b"
+                }
+            }
+        },
+        "PublicSubnetRouteTableAssociation1c": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicSubnetRouteTable"
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1c"
+                }
+            }
+        },
+        "PublicSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": "VPC",
+            "Properties": {
+                "GroupName": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            {
+                                "Ref": "ResourcePrefix"
+                            },
+                            "_Public_SG"
+                        ]
+                    ]
+                },
+                "GroupDescription": "Security Group for Public Resources",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Public_SG"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "PublicSecurityGroupIngressRule": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": [
+                "PublicSecurityGroup",
+                "LambdaSecurityGroup"
+            ],
+            "Properties": {
+                "Description": "Allow HTTP Traffic from Lambda Security Group",
+                "FromPort": 80,
+                "GroupId": {
+                    "Ref": "PublicSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "SourceSecurityGroupId": {
+                    "Ref": "LambdaSecurityGroup"
+                },
+                "ToPort": 80
+            }
+        },
+        "PublicSecurityGroupEgressRule": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": "PublicSecurityGroup",
+            "Properties": {
+                "CidrIp": "0.0.0.0/0",
+                "FromPort": 80,
+                "GroupId": {
+                    "Ref": "PublicSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "ToPort": 80
+            }
+        },
+        "LambdaSubnet1a": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Ref": "LambdaSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_Subnet1a"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "LambdaSubnet1b": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Ref": "LambdaSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_Subnet1b"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "LambdaSubnet1c": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "LambdaSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_Subnet1c"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "LambdaSubnetRouteTable1a": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_RouteTable1a"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "LambdaSubnetRouteTable1b": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_RouteTable1b"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "LambdaSubnetRouteTable1c": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_RouteTable1c"
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "LambdaSubnetRouteEntry1a": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "NATGateway1a",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NATGateway1a"
+                },
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1a"
+                }
+            }
+        },
+        "LambdaSubnetRouteEntry1b": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "NATGateway1b",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NATGateway1b"
+                },
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1b"
+                }
+            }
+        },
+        "LambdaSubnetRouteEntry1c": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "NATGateway1c",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NATGateway1c"
+                },
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1c"
+                }
+            }
+        },
+        "LambdaSubnetRouteTableAssociation1a": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1a"
+                },
+                "SubnetId": {
+                    "Ref": "LambdaSubnet1a"
+                }
+            }
+        },
+        "LambdaSubnetRouteTableAssociation1b": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1b"
+                },
+                "SubnetId": {
+                    "Ref": "LambdaSubnet1b"
+                }
+            }
+        },
+        "LambdaSubnetRouteTableAssociation1c": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "LambdaSubnetRouteTable1c"
+                },
+                "SubnetId": {
+                    "Ref": "LambdaSubnet1c"
+                }
+            }
+        },
+        "LambdaSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": "VPC",
+            "Properties": {
+                "GroupName": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            {
+                                "Ref": "ResourcePrefix"
+                            },
+                            "_Lambda_SG"
+                        ]
+                    ]
+                },
+                "GroupDescription": "Security Group for VPC Lambda Subnets",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_Lambda_SG"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "LambdaSecurityGroupEgressRule1": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": [
+                "RDSSecurityGroup",
+                "LambdaSecurityGroup"
+            ],
+            "Properties": {
+                "DestinationSecurityGroupId": {
+                    "Ref": "RDSSecurityGroup"
+                },
+                "FromPort": 5432,
+                "GroupId": {
+                    "Ref": "LambdaSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "ToPort": 5432
+            }
+        },
+        "LambdaSecurityGroupEgressRule2": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": [
+                "RDSSecurityGroup",
+                "LambdaSecurityGroup"
+            ],
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "FromPort": 80,
+                "GroupId": {
+                    "Ref": "LambdaSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "ToPort": 80
+            }
+        },
+        "LambdaSecurityGroupEgressRule3": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": [
+                "RDSSecurityGroup",
+                "LambdaSecurityGroup"
+            ],
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "FromPort": 443,
+                "GroupId": {
+                    "Ref": "LambdaSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "ToPort": 443
+            }
+        },
+        "RDSSubnet1a": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Ref": "RDSSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_RDS_Subnet1a"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "RDSSubnet1b": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Ref": "RDSSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_RDS_Subnet1b"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "RDSSubnet1c": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Fn::GetAZs": {
+                                "Ref": "AWS::Region"
+                            }
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "RDSSubnetCIDRs"
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_RDS_Subnet1c"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "RDSSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "DependsOn": "VPC",
+            "Properties": {
+                "GroupName": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            {
+                                "Ref": "ResourcePrefix"
+                            },
+                            "_RDS_SG"
+                        ]
+                    ]
+                },
+                "GroupDescription": "Security Group for RDS",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "ResourcePrefix"
+                                    },
+                                    "_RDS_SG"
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "RDSSecurityGroupIngressRule": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": [
+                "RDSSecurityGroup",
+                "LambdaSecurityGroup"
+            ],
+            "Properties": {
+                "Description": "Allow Traffic from Lambda on Port 5432 (PostgreSQL)",
+                "FromPort": 5432,
+                "GroupId": {
+                    "Ref": "RDSSecurityGroup"
+                },
+                "IpProtocol": "TCP",
+                "SourceSecurityGroupId": {
+                    "Ref": "LambdaSecurityGroup"
+                },
+                "ToPort": 5432
+            }
+        }
+    },
+    "Outputs": {}
+}
