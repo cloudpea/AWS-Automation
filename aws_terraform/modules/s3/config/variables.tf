@@ -1,0 +1,12 @@
+variable "aws_region" {}
+variable "aws_credentials_path" {}
+variable "infra_account_name" {}
+#variable "cloudtrail_bucket" {}
+variable "config_function_name" {}
+variable "config_function_identifier" {}
+variable "config_recorder_name" {}
+variable "tag1Key" {}
+variable "tag2Key" {}
+variable "tag3Key" {}
+variable "owner_tag" {}
+variable "environment" {}

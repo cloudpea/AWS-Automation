@@ -1,0 +1,24 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "${var.billing_account_no}"
+      },
+      "Action": [
+        "s3:GetBucketAcl",
+        "s3:GetBucketPolicy"
+      ],
+      "Resource": "arn:aws:s3:::${var.customer_name}-billing-bucket"
+    },
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "${var.billing_account_no}"
+      },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::billing-bucket/*"
+    }
+    ]
+  }

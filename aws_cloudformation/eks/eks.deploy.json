@@ -1,0 +1,672 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Template for deploying an EKS solution on AWS.",
+    "Parameters": {
+        "vpcID": {
+            "Type": "AWS::EC2::VPC::Id",
+            "Description": "The VPC ID to deploy worker nodes."
+        },
+        "subnetIDs": {
+            "Type": "List<AWS::EC2::Subnet::Id>",
+            "Description": "3 Subnet IDs to deploy worker nodes."
+        },
+        "controlPlaneSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup::Id",
+            "Description": "Security Group ID of the Control Plane Security Group."
+        },
+        "clusterName": {
+            "Type": "String",
+            "Default": "EKS-PRD-1-CUSTOMER-1",
+            "Description": "Name of the Kubernetes Cluster."
+        },
+        "k8sVersion": {
+            "Type": "String",
+            "Default": "1.10",
+            "Description": "Version of the Kubernetes Cluster."
+        },
+        "keyName": {
+            "Description": "The EC2 Key Pair to allow SSH access to the instances",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+        "nodeImageId": {
+            "Type": "AWS::EC2::Image::Id",
+            "Default": "ami-00c3b2d35bddd4f5c",
+            "Description": "AMI id for the worker node instances."
+        },
+        "nodeInstanceType": {
+            "Description": "EC2 instance type for the worker node instances",
+            "Type": "String",
+            "Default": "t2.medium",
+            "AllowedValues": [
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t2.xlarge",
+                "t2.2xlarge",
+                "t3.nano",
+                "t3.micro",
+                "t3.small",
+                "t3.medium",
+                "t3.large",
+                "t3.xlarge",
+                "t3.2xlarge",
+                "m3.medium",
+                "m3.large",
+                "m3.xlarge",
+                "m3.2xlarge",
+                "m4.large",
+                "m4.xlarge",
+                "m4.2xlarge",
+                "m4.4xlarge",
+                "m4.10xlarge",
+                "m5.large",
+                "m5.xlarge",
+                "m5.2xlarge",
+                "m5.4xlarge",
+                "m5.12xlarge",
+                "m5.24xlarge",
+                "c4.large",
+                "c4.xlarge",
+                "c4.2xlarge",
+                "c4.4xlarge",
+                "c4.8xlarge",
+                "c5.large",
+                "c5.xlarge",
+                "c5.2xlarge",
+                "c5.4xlarge",
+                "c5.9xlarge",
+                "c5.18xlarge"
+            ]
+        },
+        "nodeAutoScalingMinSize": {
+            "Type": "Number",
+            "Description": "Minimum size of Node Group ASG.",
+            "Default": 1
+        },
+        "nodeAutoScalingMaxSize": {
+            "Type": "Number",
+            "Description": "Maximum size of Node Group ASG.",
+            "Default": 3
+        },
+        "nodeVolumeSize": {
+            "Type": "Number",
+            "Description": "Node volume size in GB",
+            "Default": 30
+        },
+        "bootstrapArguments": {
+            "Description": "Arguments to pass to the bootstrap script. See files/bootstrap.sh in https://github.com/awslabs/amazon-eks-ami",
+            "Default": "",
+            "Type": "String"
+        },
+        "ecrName": {
+            "Type": "String",
+            "Default": "ecrprodcustomer1",
+            "AllowedPattern": "(?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*",
+            "Description": "Name of the Container Registry."
+        },
+        "bucketName": {
+            "Type": "String",
+            "Default": "s3-prd-1-customer-mongobackups-1",
+            "Description": "Name of the S3 Bucket."
+        },
+        "applicationTag": {
+            "Type": "String",
+            "Default": "Kubernetes",
+            "Description": "An Application Tag to use on all resources."
+        },
+        "environmentTag": {
+            "Type": "String",
+            "Default": "Production",
+            "Description": "An Environment Tag to use on all resources."
+        },
+        "criticalityTag": {
+            "Type": "String",
+            "AllowedValues": [
+                "Tier 1",
+                "Tier 2",
+                "Tier 3",
+                "Tier 4"
+            ],
+            "Description": "A Criticality Tag to use on all resources."
+        },
+        "ownerTag": {
+            "Type": "String",
+            "Default": "ANS",
+            "Description": "An Owner Tag to use on all resources."
+        }
+    },
+    "Resources": {
+        "eksCluster": {
+            "Type": "AWS::EKS::Cluster",
+            "Properties": {
+                "Name": {
+                    "Ref": "clusterName"
+                },
+                "RoleArn": {
+                    "Fn::GetAtt": [
+                        "AWSServiceRoleForAmazonEKS",
+                        "Arn"
+                    ]
+                },
+                "Version": {
+                    "Ref": "k8sVersion"
+                },
+                "ResourcesVpcConfig": {
+                    "SecurityGroupIds": [
+                        {
+                            "Ref": "controlPlaneSecurityGroup"
+                        }
+                    ],
+                    "SubnetIds": [
+                        {
+                            "Fn::Select": [
+                                "0",
+                                {
+                                    "Ref": "subnetIDs"
+                                }
+                            ]
+                        },
+                        {
+                            "Fn::Select": [
+                                "1",
+                                {
+                                    "Ref": "subnetIDs"
+                                }
+                            ]
+                        },
+                        {
+                            "Fn::Select": [
+                                "2",
+                                {
+                                    "Ref": "subnetIDs"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "ecrRepository": {
+            "Type": "AWS::ECR::Repository",
+            "Properties": {
+                "RepositoryName": {
+                    "Ref": "ecrName"
+                },
+                "RepositoryPolicyText": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "AllowPushPull",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": [
+                                    {
+                                        "Fn::GetAtt": [
+                                            "AWSServiceRoleForAmazonEKS",
+                                            "Arn"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "Action": [
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:BatchGetImage",
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:PutImage",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:UploadLayerPart",
+                                "ecr:CompleteLayerUpload"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "AWSServiceRoleForAmazonEKS": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "eks.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/AmazonEKSServicePolicy",
+                    "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+                ]
+            }
+        },
+        "s3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "BucketName": {
+                    "Ref": "bucketName"
+                },
+                "AccessControl": "Private",
+                "BucketEncryption": {
+                    "ServerSideEncryptionConfiguration": [
+                        {
+                            "ServerSideEncryptionByDefault": {
+                                "SSEAlgorithm": "AES256"
+                            }
+                        }
+                    ]
+                },
+                "LifecycleConfiguration": {
+                    "Rules": [
+                        {
+                            "ExpirationInDays": 30,
+                            "Id": "mongo-backup-archive-30d",
+                            "Status": "Enabled"
+                        }
+                    ]
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Kubernetes Mongo Backups Bucket"
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "applicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Criticality",
+                        "Value": {
+                            "Ref": "criticalityTag"
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Ref": "ownerTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "nodeInstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "DependsOn": "nodeInstanceRole",
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "nodeInstanceRole"
+                    }
+                ]
+            }
+        },
+        "nodeInstanceRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+                    "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
+                    "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+                ]
+            }
+        },
+        "nodeSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Security group for all worker nodes in the cluster",
+                "VpcId": {
+                    "Ref": "vpcID"
+                },
+                "Tags": [
+                    {
+                        "Key": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "kubernetes.io/cluster/",
+                                    {
+                                        "Ref": "clusterName"
+                                    }
+                                ]
+                            ]
+                        },
+                        "Value": "owned"
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "Kubernetes Worker Node SG"
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "applicationTag"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Criticality",
+                        "Value": {
+                            "Ref": "criticalityTag"
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Ref": "ownerTag"
+                        }
+                    }
+                ]
+            }
+        },
+        "nodeSecurityGroupIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow node to communicate with each other",
+                "GroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "FromPort": 0,
+                "ToPort": 65535
+            }
+        },
+        "nodeSecurityGroupFromControlPlaneIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow worker Kubelets and pods to receive communication from the cluster control plane",
+                "GroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "controlPlaneSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 1025,
+                "ToPort": 65535
+            }
+        },
+        "controlPlaneEgressToNodeSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow the cluster control plane to communicate with worker Kubelet and pods",
+                "GroupId": {
+                    "Ref": "controlPlaneSecurityGroup"
+                },
+                "DestinationSecurityGroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 1025,
+                "ToPort": 65535
+            }
+        },
+        "nodeSecurityGroupFromControlPlaneOn443Ingress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow pods running extension API servers on port 443 to receive communication from cluster control plane",
+                "GroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "controlPlaneSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 443,
+                "ToPort": 443
+            }
+        },
+        "controlPlaneEgressToNodeSecurityGroupOn443": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow the cluster control plane to communicate with pods running extension API servers on port 443",
+                "GroupId": {
+                    "Ref": "controlPlaneSecurityGroup"
+                },
+                "DestinationSecurityGroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 443,
+                "ToPort": 443
+            }
+        },
+        "controlPlaneSecurityGroupIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "DependsOn": "nodeSecurityGroup",
+            "Properties": {
+                "Description": "Allow pods to communicate with the cluster API Server",
+                "GroupId": {
+                    "Ref": "controlPlaneSecurityGroup"
+                },
+                "SourceSecurityGroupId": {
+                    "Ref": "nodeSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "ToPort": 443,
+                "FromPort": 443
+            }
+        },
+        "nodeGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "DependsOn": [
+                "nodeLaunchConfig",
+                "eksCluster"
+            ],
+            "Properties": {
+                "DesiredCapacity": {
+                    "Ref": "nodeAutoScalingMinSize"
+                },
+                "LaunchConfigurationName": {
+                    "Ref": "nodeLaunchConfig"
+                },
+                "MinSize": {
+                    "Ref": "nodeAutoScalingMinSize"
+                },
+                "MaxSize": {
+                    "Ref": "nodeAutoScalingMaxSize"
+                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            "0",
+                            {
+                                "Ref": "subnetIDs"
+                            }
+                        ]
+                    },
+                    {
+                        "Fn::Select": [
+                            "1",
+                            {
+                                "Ref": "subnetIDs"
+                            }
+                        ]
+                    },
+                    {
+                        "Fn::Select": [
+                            "2",
+                            {
+                                "Ref": "subnetIDs"
+                            }
+                        ]
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    {
+                                        "Ref": "clusterName"
+                                    },
+                                    "-Worker-Node"
+                                ]
+                            ]
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "kubernetes.io/cluster/",
+                                    {
+                                        "Ref": "clusterName"
+                                    }
+                                ]
+                            ]
+                        },
+                        "Value": "owned",
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "applicationTag"
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environmentTag"
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Criticality",
+                        "Value": {
+                            "Ref": "criticalityTag"
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Ref": "ownerTag"
+                        },
+                        "PropagateAtLaunch": true
+                    }
+                ]
+            },
+            "UpdatePolicy": {
+                "AutoScalingRollingUpdate": {
+                    "MinInstancesInService": "1",
+                    "MaxBatchSize": "1"
+                }
+            }
+        },
+        "nodeLaunchConfig": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Properties": {
+                "AssociatePublicIpAddress": "false",
+                "IamInstanceProfile": {
+                    "Ref": "nodeInstanceProfile"
+                },
+                "ImageId": {
+                    "Ref": "nodeImageId"
+                },
+                "InstanceType": {
+                    "Ref": "nodeInstanceType"
+                },
+                "KeyName": {
+                    "Ref": "keyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "nodeSecurityGroup"
+                    }
+                ],
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/xvda",
+                        "Ebs": {
+                            "VolumeSize": {
+                                "Ref": "nodeVolumeSize"
+                            },
+                            "VolumeType": "gp2",
+                            "DeleteOnTermination": true
+                        }
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\nset -o xtrace\nsh /etc/eks/bootstrap.sh ",
+                                {
+                                    "Ref": "clusterName"
+                                },
+                                " ",
+                                {
+                                    "Ref": "bootstrapArguments"
+                                },
+                                "\n/opt/aws/bin/cfn-signal --exit-code $? \\\n",
+                                "         --stack  ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                " \\\n         --resource nodeGroup",
+                                " \\\n         --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

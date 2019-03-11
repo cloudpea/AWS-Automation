@@ -1,0 +1,10 @@
+variable "spoke1_vpc_cidr" {}
+variable "aws_region" {}
+variable "spoke1_vpc_name" {}
+variable "spoke1_account_name" {}
+variable "environment" {}
+variable "owner_tag" {}
+variable "spoke1_vpc" {}
+variable "spoke_vpc" {}
+variable "spoke1_vpc_id" {}
+variable "aws_credentials_path" {}

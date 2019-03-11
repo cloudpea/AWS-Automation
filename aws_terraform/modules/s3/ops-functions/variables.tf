@@ -1,0 +1,9 @@
+variable "infra_ops_functions_bucket_name" {}
+variable "aws_credentials_path" {}
+variable "aws_region" {}
+variable "infra_account_name" {}
+variable "environment" {}
+variable "owner_tag" {}
+variable "OpsFunctionsS3Bucket" {}
+variable "OpsFunctionsS3BucketAccountsPath" {}
+#variable "cloudtrail_bucket" {}

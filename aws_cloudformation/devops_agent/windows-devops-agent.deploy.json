@@ -1,0 +1,267 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Template for deploying Azure DevOps Build Agent",
+    "Metadata": {},
+    "Parameters": {
+        "instanceName": {
+            "Description": "Name for the EC2 Instances",
+            "Type": "String",
+            "Default": "VM-PRD-1-DEVOPS"
+        },
+        "VPC": {
+			"Description": "VPC to Deploy Bastion Host",
+			"Type" : "AWS::EC2::VPC::Id"
+        },
+		"SubnetA": {
+			"Description": "Subnet to Deploy Bastion Host",
+			"Type" : "AWS::EC2::Subnet::Id"
+        },
+		"SubnetB": {
+			"Description": "Subnet to Deploy Bastion Host",
+			"Type" : "AWS::EC2::Subnet::Id"
+        },
+        "InstanceKey": {
+			"Description": "EC2 Instance Key Pair for Bastion Host",
+            "Type" : "AWS::EC2::KeyPair::KeyName"
+        },
+        "InstanceType": {
+			"Description": "Instance Type for Bastion Host",
+            "Type" : "String",
+            "Default" : "t2.small",
+            "AllowedValues" : ["t3.small", "t3.medium", "t3.xlarge"]
+        },
+        "criticalityTag": {
+			"Description": "Instance Criticality Tag",
+            "Type" : "String",
+            "Default" : "t2.small",
+            "AllowedValues" : ["t3.small", "t3.medium", "t3.xlarge"]
+        },
+        "environmentTag": {
+			"Description": "Instance Environment Tag",
+            "Type" : "String",
+            "Default" : "t2.small",
+            "AllowedValues" : ["t3.small", "t3.medium", "t3.xlarge"]
+        },
+        "vstsAccount": {
+            "Description": "Name of the Azure DevOps Account Organisation",
+            "Type": "String",
+            "Default": "ans-devops"
+        },
+        "vstsPersonalAccessToken": {
+            "Description": "Person Access Token for Azure DevOps Agent Pool",
+            "Type": "String"
+        },
+        "vstsPoolName": {
+            "Description": "Agent Pool Name in Azure DevOps",
+            "Type": "String",
+            "Default": "customerName"
+        }        
+    },
+    "Mappings": {
+        "RegionAMI" : {
+            "us-east-1" : { "Windows" : "ami-050202fb72f001b47"},
+            "us-east-2" : { "Windows" : "ami-028779930ada5200c"},
+            "us-west-1" : { "Windows" : "ami-08838e38cfe4854ad"},
+            "us-west-2" : { "Windows" : "ami-017bf00eb0d4c7182"},
+            "ap-south-1" : { "Windows" : "ami-0e9c4931f7c9d73f6"},
+            "ap-northeast-1" : { "Windows" : "ami-0299966eb9de2a190"},
+            "ap-northeast-2" : { "Windows" : "ami-0c6a4d561b38c05ed"},
+            "ap-southeast-1" : { "Windows" : "ami-098731bcd06ea9ca6"},
+            "ap-southeast-2" : { "Windows" : "ami-0096a7a7add65af89"},
+            "ca-central-1" : { "Windows" : "ami-04a4290c9c20574d9"},
+            "eu-central-1" : { "Windows" : "ami-0a085cefe990fdadc"},
+            "eu-west-1" : { "Windows" : "ami-ami-0cd8a780065ea078f"},
+            "eu-west-2" : { "Windows" : "ami-0f5f78829606035fc"},
+            "eu-west-3" : { "Windows" : "ami-0152e5e7567b014fc"}, 
+            "sa-east-1" : { "Windows" : "ami-0c3faf6ff12a7f005"}
+        }
+    },
+    "Resources": {
+        "networkSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "3389",
+                        "ToPort": "3389",
+                        "CidrIp": "185.12.194.1/32"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "SG-PRD-1-DevOps"
+                    }
+                ],
+                "GroupDescription": "Windows Bastion Host Security Group",
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "buildAgentInstance1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "RegionAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Windows"
+                    ]
+                },
+                "InstanceInitiatedShutdownBehavior": "stop",
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKey"
+                },
+                "Monitoring": "false",
+                "NetworkInterfaces": [
+                    {
+                        "AssociatePublicIpAddress": "false",
+                        "DeleteOnTermination": "True",
+                        "SubnetId": {
+                            "Ref": "SubnetA"
+                        },
+                        "GroupSet": [
+                            {
+                                "Fn::GetAtt": [
+                                    "networkSecurityGroup",
+                                    "GroupId"
+                                ]
+                            }
+                        ],
+                        "DeviceIndex": "0"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "ANS-Windows-Bastion"
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": "Azure DevOps"
+                    },
+                    {
+                        "Key": "Criticality",
+                        "Value": {
+                            "Ref": "criticalityTag"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": "ANS"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "#Download Powershell Script \n",
+                                "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/201-vm-vsts-agent/scripts/InstallVstsAgent.ps1' -OutFile 'C:\\Temp\\InstallVstsAgent.ps1'\n",
+                                "#Run Powershell Script with Parameters\n",
+                                "C:\\Temp\\InstallVstsAgent.ps1 -vstsAccount ', parameters('vstsAccount'), ' -personalAccessToken ', parameters('vstsPersonalAccessToken'), ' -PoolName ', parameters('vstsPoolName'), ' -AgentCount ', 1, ' -Modules ', 'AzureRM' \n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "buildAgentInstance2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "RegionAMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Windows"
+                    ]
+                },
+                "InstanceInitiatedShutdownBehavior": "stop",
+                "InstanceType": {
+                    "Ref": "InstanceType"
+                },
+                "KeyName": {
+                    "Ref": "InstanceKey"
+                },
+                "Monitoring": "false",
+                "NetworkInterfaces": [
+                    {
+                        "AssociatePublicIpAddress": "false",
+                        "DeleteOnTermination": "True",
+                        "SubnetId": {
+                            "Ref": "SubnetB"
+                        },
+                        "GroupSet": [
+                            {
+                                "Fn::GetAtt": [
+                                    "networkSecurityGroup",
+                                    "GroupId"
+                                ]
+                            }
+                        ],
+                        "DeviceIndex": "0"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "ANS-Windows-Bastion"
+                    },
+                    {
+                        "Key": "Application",
+                        "Value": "Azure DevOps"
+                    },
+                    {
+                        "Key": "Criticality",
+                        "Value": {
+                            "Ref": "criticalityTag"
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environmentTag"
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": "ANS"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "<powershell>\n",
+                                "#Download Powershell Script \n",
+                                "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/201-vm-vsts-agent/scripts/InstallVstsAgent.ps1' -OutFile 'C:\\Temp\\InstallVstsAgent.ps1'\n",
+                                "#Run Powershell Script \n",
+                                "C:\\Temp\\InstallVstsAgent.ps1 -vstsAccount ', parameters('vstsAccount'), ' -personalAccessToken ', parameters('vstsPersonalAccessToken'), ' -PoolName ', parameters('vstsPoolName'), ' -AgentCount ', 1, ' -Modules ', 'AzureRM' \n",
+                                "</powershell>"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "Outputs": {}
+}

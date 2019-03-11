@@ -1,0 +1,158 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "criticalityTag": {
+            "Type": "String",
+            "Description": "Criticality Tag for VM resources",
+            "Default": "Tier 2"
+        },
+        "environmentTag": {
+            "Type": "String",
+            "Description": "Environment Tag for VM resources",
+            "Default": "Production"
+        },
+        "InstanceVPC": {
+            "Type": "AWS::EC2::VPC::Id"
+        },
+        "InstanceSubnetA": {
+            "Type": "AWS::EC2::Subnet::Id"
+        },
+        "InstanceSubnetB": {
+            "Type": "AWS::EC2::Subnet::Id"
+        },
+        "InstanceKey": {
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Description": "Key to access instances"
+        },
+        "InstanceType": {
+            "Type": "String",
+            "Description": "Desired Size of the VM. Any valid option accepted but if you choose premium storage Type you must choose a DS class VM size.",
+            "Default" : "t2.micro",
+            "AllowedValues" : ["t2.micro", "t3.small", "t3.medium", "t3.xlarge"]
+        },
+        "vstsAccount": {
+            "Type": "String",
+            "Default": "https://dev.azure.com/ans-devops"
+        },
+        "vstsPoolName": {
+            "Type": "String",
+            "Description": "Name of the Azure DevOps Agent Pool."
+        },
+        "vstsPersonalAccessToken": {
+            "Type": "String",
+            "Description": "Personal Access Token for Azure DevOps Organisation."
+        }
+    },
+    "Mappings": {
+        "RegionAMI" : {
+            "us-east-1" : { "Ubuntu" : "ami-0ac019f4fcb7cb7e6" },
+            "us-east-2" : { "Ubuntu" : "ami-0f65671a86f061fcd" },
+            "us-west-1" : { "Ubuntu" : "ami-063aa838bd7631e0b" },
+            "us-west-2" : { "Ubuntu" : "ami-0bbe6b35405ecebdb" },
+            "ap-south-1" : { "Ubuntu" : "ami-0d773a3b7bb2bb1c1"},
+            "ap-northeast-1" : { "Ubuntu" : "ami-07ad4b1c3af1ea214" },
+            "ap-northeast-2" : { "Ubuntu" : "ami-06e7b9c5e0c4dd014" },
+            "ap-southeast-1" : { "Ubuntu" : "ami-0c5199d385b432989" },
+            "ap-southeast-2" : { "Ubuntu" : "ami-07a3bd4944eb120a0" },
+            "ca-central-1" : { "Ubuntu" : "ami-0427e8367e3770df1" },
+            "eu-central-1" : { "Ubuntu" : "ami-0bdf93799014acdc4" },
+            "eu-west-1" : { "Ubuntu" : "ami-00035f41c82244dab" },
+            "eu-west-2" : { "Ubuntu" : "ami-0b0a60c0a2bd40612" },
+            "eu-west-3" : { "Ubuntu" : "ami-08182c55a1c188dee" }, 
+            "sa-east-1" : { "Ubuntu" : "ami-03c6239555bb12112" }
+        }
+    },
+    "Resources": {
+        "SGANSAccess": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupName": "SG-ANS-Access",
+                "GroupDescription": "SSH",
+                "Tags": [
+                    { "Key": "Application", "Value": "Azure DevOps" },
+                    { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
+                    { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
+                    { "Key": "Owner", "Value": "ANS" }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp" : "185.12.194.1/32",
+                        "IpProtocol": "tcp",
+                        "FromPort": "22",
+                        "ToPort" : "22"
+                    }
+                ]
+            }
+        },
+        "DevopsAgent1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "InstanceType": { "Ref": "InstanceType" },
+                "Tags": [
+                    { "Key": "Name", "Value": "ANS-VM-PRD-DEVOPS-1" },
+                    { "Key": "Application", "Value": "Azure DevOps" },
+                    { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
+                    { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
+                    { "Key": "Owner", "Value": "ANS" }
+                ],
+                "KeyName": { "Ref": "InstanceKey" },
+                "SubnetId": { "Ref": "InstanceSubnetA" },
+                "ImageId": { "Fn::FindInMap": [ "RegionAMI", { "Ref": "AWS::Region" }, "Ubuntu" ] },
+                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGANSAccess", "GroupId" ] } ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "", [
+                                "#!/bin/bash\n",
+                                "apt-get update\n",
+                                "rm /var/lib/dpkg/lock\n",
+                                "DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq\n",
+                                "dpkg --configure -a\n",
+                                "apt-get install -y dos2unix\n",
+                                "curl -L https://raw.githubusercontent.com/ans-cst/Cloud-Scripts/master/Azure/DevOps/Install-LinuxVSTSAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "chmod a+x /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "dos2unix /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "/tmp/InstallLinuxVSTSAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "DevopsAgent2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "InstanceType": { "Ref": "InstanceType" },
+                "Tags": [
+                    { "Key": "Name", "Value": "ANS-VM-PRD-DEVOPS-2" },
+                    { "Key": "Application", "Value": "Azure DevOps" },
+                    { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
+                    { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
+                    { "Key": "Owner", "Value": "ANS" }
+                ],
+                "KeyName": { "Ref": "InstanceKey" },
+                "SubnetId": { "Ref": "InstanceSubnetB" },
+                "ImageId": { "Fn::FindInMap": [ "RegionAMI", { "Ref": "AWS::Region" }, "Ubuntu" ] },
+                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGANSAccess", "GroupId" ] } ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "", [
+                                "#!/bin/bash\n",
+                                "apt-get update\n",
+                                "rm /var/lib/dpkg/lock\n",
+                                "DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq\n",
+                                "dpkg --configure -a\n",
+                                "apt-get install -y dos2unix\n",
+                                "curl -L https://raw.githubusercontent.com/ans-cst/Cloud-Scripts/master/Azure/DevOps/Install-LinuxVSTSAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "chmod a+x /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "dos2unix /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "/tmp/InstallLinuxVSTSAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
