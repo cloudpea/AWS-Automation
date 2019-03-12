@@ -1,2 +1,17 @@
+#MacOS Files
 .DS_Store
 **/.DS_Store
+
+#Kubernetes Files
+*.sec.yaml
+**/*.sec.yaml
+
+#Terraform Files
+.terraform/*
+**/.terraform/*
+terraform.tfstate
+terraform.tfstate.backup
+**/terraform.tfstate
+**/terraform.tfstate.backup
+outputs.txt
+**/outputs.txt
