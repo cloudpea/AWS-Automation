@@ -48,7 +48,7 @@
         },
         "ownerTag": {
             "Type": "String",
-            "Default": "ANS",
+            "Default": "CloudPea",
             "Description": "An Owner Tag to use on all resources."
         }
     },

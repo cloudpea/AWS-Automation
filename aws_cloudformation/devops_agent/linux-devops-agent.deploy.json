@@ -11,6 +11,11 @@
             "Description": "Environment Tag for VM resources",
             "Default": "Production"
         },
+        "ownerTag": {
+            "Type": "String",
+            "Description": "Owner Tag for VM resources",
+            "Default": "CloudPea"
+        },
         "InstanceVPC": {
             "Type": "AWS::EC2::VPC::Id"
         },
@@ -30,9 +35,13 @@
             "Default" : "t2.micro",
             "AllowedValues" : ["t2.micro", "t3.small", "t3.medium", "t3.xlarge"]
         },
+        "corporateIP": {
+            "Type": "String",
+            "Description": "IP CIDR Block for the Corporate Network to Allow SSH Access."
+        },
         "vstsAccount": {
             "Type": "String",
-            "Default": "https://dev.azure.com/ans-devops"
+            "Default": "https://dev.azure.com/cloudpea"
         },
         "vstsPoolName": {
             "Type": "String",
@@ -63,20 +72,20 @@
         }
     },
     "Resources": {
-        "SGANSAccess": {
+        "SGAccess": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupName": "SG-ANS-Access",
+                "GroupName": "SG-Corp-Access",
                 "GroupDescription": "SSH",
                 "Tags": [
                     { "Key": "Application", "Value": "Azure DevOps" },
                     { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
                     { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
-                    { "Key": "Owner", "Value": "ANS" }
+                    { "Key": "Owner", "Value": { "Ref": "ownerTag" } }
                 ],
                 "SecurityGroupIngress": [
                     {
-                        "CidrIp" : "185.12.194.1/32",
+                        "CidrIp" : { "Ref": "corporateIP" },
                         "IpProtocol": "tcp",
                         "FromPort": "22",
                         "ToPort" : "22"
@@ -89,16 +98,16 @@
             "Properties": {
                 "InstanceType": { "Ref": "InstanceType" },
                 "Tags": [
-                    { "Key": "Name", "Value": "ANS-VM-PRD-DEVOPS-1" },
+                    { "Key": "Name", "Value": "VM-PRD-DEVOPS-1" },
                     { "Key": "Application", "Value": "Azure DevOps" },
                     { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
                     { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
-                    { "Key": "Owner", "Value": "ANS" }
+                    { "Key": "Owner", "Value": { "Ref": "ownerTag" } }
                 ],
                 "KeyName": { "Ref": "InstanceKey" },
                 "SubnetId": { "Ref": "InstanceSubnetA" },
                 "ImageId": { "Fn::FindInMap": [ "RegionAMI", { "Ref": "AWS::Region" }, "Ubuntu" ] },
-                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGANSAccess", "GroupId" ] } ],
+                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGAccess", "GroupId" ] } ],
                 "UserData": {
                     "Fn::Base64": {
                         "Fn::Join": [
@@ -108,11 +117,11 @@
                                 "rm /var/lib/dpkg/lock\n",
                                 "DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq\n",
                                 "dpkg --configure -a\n",
+                                "curl -L https://raw.githubusercontent.com/cloudpea/AWS-Automation/master/aws_cloudformation/devops_agent/InstallDevopsAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
                                 "apt-get install -y dos2unix\n",
-                                "curl -L https://raw.githubusercontent.com/ans-cst/Cloud-Scripts/master/Azure/DevOps/Install-LinuxVSTSAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "chmod a+x /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "dos2unix /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "/tmp/InstallLinuxVSTSAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
+                                "chmod a+x /tmp/InstallDevopsAgent.sh\n",
+                                "dos2unix /tmp/InstallDevopsAgent.sh\n",
+                                "/tmp/InstallDevopsAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
                             ]
                         ]
                     }
@@ -124,16 +133,16 @@
             "Properties": {
                 "InstanceType": { "Ref": "InstanceType" },
                 "Tags": [
-                    { "Key": "Name", "Value": "ANS-VM-PRD-DEVOPS-2" },
+                    { "Key": "Name", "Value": "VM-PRD-DEVOPS-2" },
                     { "Key": "Application", "Value": "Azure DevOps" },
                     { "Key": "Criticality", "Value": { "Ref": "criticalityTag" } },
                     { "Key": "Environment", "Value": { "Ref": "environmentTag" } },
-                    { "Key": "Owner", "Value": "ANS" }
+                    { "Key": "Owner", "Value": { "Ref": "ownerTag" } }
                 ],
                 "KeyName": { "Ref": "InstanceKey" },
                 "SubnetId": { "Ref": "InstanceSubnetB" },
                 "ImageId": { "Fn::FindInMap": [ "RegionAMI", { "Ref": "AWS::Region" }, "Ubuntu" ] },
-                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGANSAccess", "GroupId" ] } ],
+                "SecurityGroupIds": [ { "Fn::GetAtt": [ "SGAccess", "GroupId" ] } ],
                 "UserData": {
                     "Fn::Base64": {
                         "Fn::Join": [
@@ -144,10 +153,10 @@
                                 "DEBIAN_FRONTEND=noninteractive apt-get upgrade -yq\n",
                                 "dpkg --configure -a\n",
                                 "apt-get install -y dos2unix\n",
-                                "curl -L https://raw.githubusercontent.com/ans-cst/Cloud-Scripts/master/Azure/DevOps/Install-LinuxVSTSAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "chmod a+x /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "dos2unix /tmp/InstallLinuxVSTSAgent.sh\n",
-                                "/tmp/InstallLinuxVSTSAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
+                                "curl -L https://raw.githubusercontent.com/cloudpea/AWS-Automation/master/aws_cloudformation/devops_agent/InstallDevopsAgent.sh -o /tmp/InstallLinuxVSTSAgent.sh\n",
+                                "chmod a+x /tmp/InstallDevopsAgent.sh\n",
+                                "dos2unix /tmp/InstallDevopsAgent.sh\n",
+                                "/tmp/InstallDevopsAgent.sh ", { "Ref": "vstsPersonalAccessToken" }, " ", { "Ref": "vstsPoolName" }, " ", "ubuntu\n"
                             ]
                         ]
                     }

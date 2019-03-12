@@ -12,7 +12,7 @@
   [string]$TemplateFilePath
 )
 Write-Output ""
-Write-Output "ANS - AWS DevOps Agent Deployment"
+Write-Output "AWS DevOps Agent Deployment"
 Write-Output "Version 1.0.0"
 Write-Output ""
 Write-Output ""

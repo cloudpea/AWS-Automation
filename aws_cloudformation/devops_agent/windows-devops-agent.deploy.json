@@ -45,7 +45,7 @@
         "vstsAccount": {
             "Description": "Name of the Azure DevOps Account Organisation",
             "Type": "String",
-            "Default": "ans-devops"
+            "Default": "cloudpea"
         },
         "vstsPersonalAccessToken": {
             "Description": "Person Access Token for Azure DevOps Agent Pool",
@@ -141,7 +141,7 @@
                 "Tags": [
                     {
                         "Key": "Name",
-                        "Value": "ANS-Windows-Bastion"
+                        "Value": "Windows-Bastion"
                     },
                     {
                         "Key": "Application",
@@ -161,7 +161,7 @@
                     },
                     {
                         "Key": "Owner",
-                        "Value": "ANS"
+                        "Value": "CloudPea"
                     }
                 ],
                 "UserData": {
@@ -222,7 +222,7 @@
                 "Tags": [
                     {
                         "Key": "Name",
-                        "Value": "ANS-Windows-Bastion"
+                        "Value": "Windows-Bastion"
                     },
                     {
                         "Key": "Application",
@@ -242,7 +242,7 @@
                     },
                     {
                         "Key": "Owner",
-                        "Value": "ANS"
+                        "Value": "CloudPea"
                     }
                 ],
                 "UserData": {
