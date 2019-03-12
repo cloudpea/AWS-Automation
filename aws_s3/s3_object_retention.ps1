@@ -5,7 +5,7 @@ Param (
   [Parameter(Mandatory = $True, HelpMessage = "AWS IAM User Secret Key")]
   [string]$SecretKey,
 
-  [Parameter(Mandatory = $True, HelpMessage = "objects not modified within the Number of Days will be exported")]
+  [Parameter(Mandatory = $True, HelpMessage = "S3 Objects not modified within the Number of Days will be exported")]
   [int]$LastModifiedInDays
 )
 
