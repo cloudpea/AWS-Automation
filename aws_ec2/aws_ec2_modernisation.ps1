@@ -3,10 +3,10 @@
   [string]$csvPath,
 
   [Parameter(Mandatory=$True, HelpMessage="API Access Key for AWS Account")]
-  [string]$accessKey,
+  [string]$AccessKey,
 
   [Parameter(Mandatory=$True, HelpMessage="API Secret Key for AWS Account")]
-  [securestring]$secretKey,
+  [string]$SecretKey
 )
 Write-Output ""
 Write-Output "Unmodernised Instance Recommendations"
@@ -21,7 +21,7 @@ If ($ModuleError) {
     Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Installing module..."
     Install-Module -Name AWSPowerShell.NetCore
     Import-Module -Name AWSPowerShell.NetCore
-    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Installed module..."
+    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Installed module"
 }
 Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Imported module"
 Write-Output ""
@@ -68,7 +68,7 @@ foreach($TableEntry in $CSV) {
 #Login to AWS
 Write-Output ""
 Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Logging in to AWS Account..."
-Set-AWSCredentials -AccessKey $accessKey -SecretKey $secretKey ;
+Set-AWSCredentials -AccessKey $AccessKey -SecretKey $SecretKey ;
 Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully logged in to AWS Account"
 Write-Output ""
 

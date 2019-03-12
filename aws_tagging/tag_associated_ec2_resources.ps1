@@ -1,9 +1,8 @@
 ﻿Param (
   [Parameter(Mandatory=$True, HelpMessage="API Access Key for AWS Account")]
   [string]$accessKey,
-
   [Parameter(Mandatory=$True, HelpMessage="API Secret Key for AWS Account")]
-  [securestring]$secretKey,
+  [string]$secretKey
 )
 Write-Output ""
 Write-Output "Tag Associated EC2 Resources"
@@ -11,18 +10,17 @@ Write-Output "Version - 1.0.0"
 Write-Output "Author - Ryan Froggatt (CloudPea)"
 Write-Output ""
 
-
-#Import AWS PowerShell Module
+#Install and Import AWS PowerShell Module
 Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Importing module..."
-Import-Module -Name AWSPowerShell -ErrorVariable ModuleError
-if ($ModuleError) {
-Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Module Error - $ModuleError"
-Write-Output ""
+Import-Module -Name AWSPowerShell.NetCore -ErrorVariable ModuleError -ErrorAction SilentlyContinue
+If ($ModuleError) {
+    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Installing module..."
+    Install-Module -Name AWSPowerShell.NetCore
+    Import-Module -Name AWSPowerShell.NetCore
+    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Installed module"
 }
-else {
-Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Imported module <br />"
+Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Successfully Imported module"
 Write-Output ""
-}
 
 #Login to AWS
 Write-Output ""
