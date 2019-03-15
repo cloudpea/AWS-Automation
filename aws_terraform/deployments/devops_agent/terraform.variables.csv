@@ -1,0 +1,14 @@
+﻿VariableName,VariableValue,Type,Variable Description
+aws_access_key,********************,String,The AWS Access Key
+aws_secret_key,****************************************,String,The AWS Secret Key
+aws_region,us-east-2,String,The AWS Region
+instance_type,t3.nano,String,The ec2 instance size
+vpc_id,vpc-xxxxxxxx,String,The vpc id to deploy the instances in to
+subnet_ids,"subnet-xxxxxxxx, subnet-xxxxxxxx",String,Two subnet ids to deploy the instances in to
+corporate_ip,86.7.1.174,String,A single IP address to allow RDP / SSH connections
+instance_key,,String,The name of the EC2 instance key to use
+devops_organisation,cloudpea,String,The Azure DevOps organisation name
+devops_pat,****************************************************,String,The Azure DevOps personal access token
+devops_pool_name,cloudpea,String,The Azure DevOps agent pool name
+environment_tag,Production,String,An environment tag for the instances
+owner_tag,Integration Team,String,An owner tag for the instances
