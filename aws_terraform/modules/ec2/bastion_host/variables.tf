@@ -1,0 +1,9 @@
+variable "vpc_id" {}
+variable "windows_host" {}
+variable "linux_host" {}
+variable "instance_type" {}
+variable "subnet_id" {}
+variable "corporate_ip" {}
+variable "instance_key" {}
+variable "environment_tag" {}
+variable "owner_tag" {}
