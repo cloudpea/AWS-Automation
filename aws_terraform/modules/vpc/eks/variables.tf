@@ -1,6 +1,7 @@
 variable "availability_zones" {}
-variable "eks_vpc_cidr" {}
-variable "eks_subnet_cidrs" {}
+variable "vpc_cidr" {}
+variable "kubernetes_subnet_cidrs" {}
+variable "pipeline_subnet_cidrs" {}
 variable "environment_tag" {}
 variable "owner_tag" {}
 
