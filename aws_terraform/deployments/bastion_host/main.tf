@@ -13,7 +13,6 @@ module "bastion_host" {
   vpc_id          = "${var.vpc_id}"
   subnet_id       = "${var.subnet_id}"
   corporate_ip    = "${var.corporate_ip}"
-  vm_username     = "${var.vm_username}"
   instance_key    = "${var.instance_key}"
   environment_tag = "${var.environment_tag}"
   owner_tag       = "${var.owner_tag}"

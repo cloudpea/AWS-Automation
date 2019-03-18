@@ -1,13 +1,13 @@
 ﻿VariableName,VariableValue,Type,Variable Description
-aws_access_key,********************,String,The AWS Access Key
-aws_secret_key,****************************************,String,The AWS Secret Key
-aws_region,us-east-2,String,The AWS Region
-windows_host,FALSE,String,Set to true to deploy a Windows Instance
-linux_host,FALSE,String,Set to true to deploy a Linux Instance
+aws_access_key,xxxxxxxxxxxxxxxxxxxx,String,The AWS Access Key
+aws_secret_key,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,String,The AWS Secret Key
+aws_region,eu-west-2,String,The AWS Region
+windows_host,TRUE,String,Set to true to deploy a Windows Instance
+linux_host,TRUE,String,Set to true to deploy a Linux Instance
 instance_type,t3.nano,String,The ec2 instance size
 vpc_id,vpc-xxxxxxxx,String,The vpc id to deploy the instances in to
 subnet_id,subnet-xxxxxxxx,String,The subnet id to deploy the instances in to
-corporate_ip,86.7.1.174,String,A single IP address to allow RDP / SSH connections
-instance_key,,String,The name of the EC2 instance key to use
-environment_tag,Management,String,An environment tag for the instances
-owner_tag,IT,String,An owner tag for the instances
+corporate_ip,xxx.xxx.xxx.xxx,String,A single IP address to allow RDP / SSH connections
+instance_key,<Key_Name>,String,The name of the EC2 instance key to use
+environment_tag,Production,String,An environment tag for the instances
+owner_tag,<Owner>,String,An owner tag for the instances

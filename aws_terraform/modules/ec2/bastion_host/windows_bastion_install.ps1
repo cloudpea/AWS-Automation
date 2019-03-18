@@ -1,3 +1,4 @@
+<powershell>
 #Create Temp Directory 
 New-Item -ItemType directory -Path C:\\Temp
 
@@ -21,3 +22,4 @@ $WScriptShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WScriptShell.CreateShortcut($ShortcutFile)
 $Shortcut.TargetPath = $TargetFile
 $Shortcut.Save()
+</powershell>
