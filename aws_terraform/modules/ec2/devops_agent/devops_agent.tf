@@ -1,15 +1,14 @@
 data "aws_availability_zones" "available" {}
 
 resource "aws_security_group" "security_group" {
-  count = "${signum(var.azure_pipeline)}"
   name        = "devops-agent-sg"
   description = "Default Azure DevOps Agent Security Group"
   vpc_id      = "${var.vpc_id}"
 
   ingress {
-    from_port = 0
-    to_port = 22
-    protocol = "TCP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "TCP"
     cidr_blocks = ["${var.corporate_ip}/32"]
   }
 
@@ -48,18 +47,19 @@ data "template_file" "agent_install" {
 }
 
 resource "aws_instance" "devops_agent_1" {
-  count = "${signum(var.azure_pipeline)}"
-  ami                    = "${data.aws_ami.latest-ubuntu.id}"
-  instance_type          = "${var.instance_type}"
-  availability_zone      = "${data.aws_availability_zones.available.name[0]}"
-  monitoring             = true
-  vpc_security_group_ids = "${aws_security_group.security_group.id}"
-  subnet_id              = "${var.subnet_ids[0]}"
-  key_name               = "${var.instance_key}"
+  ami                         = "${data.aws_ami.latest-ubuntu.id}"
+  instance_type               = "${var.instance_type}"
+  availability_zone           = "${data.aws_availability_zones.available.names[0]}"
+  monitoring                  = true
+  associate_public_ip_address = false
+  vpc_security_group_ids      = ["${aws_security_group.security_group.id}"]
+  subnet_id                   = "${var.subnet_ids[0]}"
+  key_name                    = "${var.instance_key}"
 
   user_data = "${data.template_file.agent_install.rendered}"
 
   tags = {
+    Name        = "Azure-DevOps-Agent-1"
     Application = "Azure DevOps"
     Environment = "${var.environment_tag}"
     Owner       = "${var.owner_tag}"
@@ -67,18 +67,19 @@ resource "aws_instance" "devops_agent_1" {
 }
 
 resource "aws_instance" "devops_agent_2" {
-  count = "${signum(var.azure_pipeline)}"
-  ami                    = "${data.aws_ami.latest-ubuntu.id}"
-  instance_type          = "${var.instance_type}"
-  availability_zone      = "${data.aws_availability_zones.available.name[1]}"
-  monitoring             = true
-  vpc_security_group_ids = "${aws_security_group.security_group.id}"
-  subnet_id              = "${var.subnet_ids[1]}"
-  key_name               = "${var.instance_key}"
+  ami                         = "${data.aws_ami.latest-ubuntu.id}"
+  instance_type               = "${var.instance_type}"
+  availability_zone           = "${data.aws_availability_zones.available.names[1]}"
+  monitoring                  = true
+  associate_public_ip_address = false
+  vpc_security_group_ids      = ["${aws_security_group.security_group.id}"]
+  subnet_id                   = "${var.subnet_ids[1]}"
+  key_name                    = "${var.instance_key}"
 
   user_data = "${data.template_file.agent_install.rendered}"
 
   tags = {
+    Name        = "Azure-DevOps-Agent-2"
     Application = "Azure DevOps"
     Environment = "${var.environment_tag}"
     Owner       = "${var.owner_tag}"

@@ -2,6 +2,9 @@
 # Version 1.0
 # Installs and configures Azure DevOps, Docker, Kubectl and az cli
 
+# Use root account
+sudo -i
+
 # Command usage: InstallDevopsAgent.sh $VSTS_AGENT_INPUT_TOKEN $VSTS_AGENT_INPUT_POOL
 export DEVOPS_DOWNLOAD_URL="https://vstsagentpackage.azureedge.net/agent/2.141.1/vsts-agent-linux-x64-2.141.1.tar.gz"
 export ADMINUSER=${vm_username}
@@ -28,6 +31,8 @@ if [ ! -a /etc/systemd/system/vsts.agent.${devops_organisation}.$VSTS_AGENT_INPU
   tar zxf /tmp/vsts-agent-linux.x64.tar.gz
   sudo chown -R $ADMINUSER:999 /home/$ADMINUSER/agent
   # Install dependencies
+  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8
+  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EB3E94ADBE1229CF
   sudo ./bin/installdependencies.sh
   # TODO: Config needs to be configured for unattended access
   su --command "./config.sh --unattended --acceptTeeEula" $ADMINUSER
