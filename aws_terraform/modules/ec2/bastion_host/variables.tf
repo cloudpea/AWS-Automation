@@ -1,9 +1,35 @@
-variable "vpc_id" {}
-variable "windows_host" {}
-variable "linux_host" {}
-variable "instance_type" {}
-variable "subnet_id" {}
-variable "corporate_ip" {}
-variable "instance_key" {}
-variable "environment_tag" {}
-variable "owner_tag" {}
+variable "vpc_id" {
+  type = "string"
+}
+
+variable "windows_host" {
+  type = "string"
+}
+
+variable "linux_host" {
+  type = "string"
+}
+
+variable "instance_type" {
+  type = "string"
+}
+
+variable "subnet_id" {
+  type = "string"
+}
+
+variable "corporate_ip" {
+  type = "string"
+}
+
+variable "instance_key" {
+  type = "string"
+}
+
+variable "environment_tag" {
+  type = "string"
+}
+
+variable "owner_tag" {
+  type = "string"
+}
