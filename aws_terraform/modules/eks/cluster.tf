@@ -1,3 +1,6 @@
+
+### IAM Resources ###
+
 # EKS Cluster IAM Role
 resource "aws_iam_role" "eks_cluster_role" {
   name = "eks-cluster-role"
@@ -28,17 +31,6 @@ resource "aws_iam_role_policy_attachment" "AmazonEKSClusterPolicy" {
 resource "aws_iam_role_policy_attachment" "AmazonEKSServicePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
   role       = "${aws_iam_role.eks_cluster_role.name}"
-}
-
-# EKS Cluster
-resource "aws_eks_cluster" "eks_cluster" {
-  name = "${var.cluster_name}"
-
-  role_arn = "${aws_iam_role.eks_cluster_role.arn}"
-
-  vpc_config {
-    subnet_ids = ["${var.kubernetes_subnets}"]
-  }
 }
 
 # EKS Node IAM Role
@@ -79,17 +71,14 @@ resource "aws_iam_role_policy_attachment" "AmazonEC2ContainerRegistryReadOnly" {
   role       = "${aws_iam_role.eks_node_role.name}"
 }
 
-# EKS IAM Role LB Policy Attachment
-resource "aws_iam_role_policy_attachment" "AmazonEKS_LB_Policy" {
-  policy_arn = "arn:aws:iam::12345678901:policy/eks-lb-policy"
-  role       = "${aws_iam_role.eks_node_role.name}"
-}
-
 # EKS Node IAM Instance Profile
 resource "aws_iam_instance_profile" "eks_instance_profile" {
   name = "eks-instance-profile"
   role = "${aws_iam_role.eks_node_role.name}"
 }
+
+
+### VPC Resources ###
 
 # EKS Node Security Group
 resource "aws_security_group" "eks_node_security_group" {
@@ -135,11 +124,48 @@ resource "aws_security_group_rule" "eks_node_ingress_cluster" {
   type                     = "ingress"
 }
 
+# EKS Control Plane Security Group Rule Cluster Ingress
+resource "aws_security_group_rule" "eks_cluster_ingress_cluster" {
+  description              = "Allow cluster control plane to receive communication from the worker Kubelets and pods"
+  from_port                = 1025
+  protocol                 = "tcp"
+  security_group_id        = "${var.security_group_id}"
+  source_security_group_id = "${aws_security_group.eks_node_security_group.id}"
+  to_port                  = 65535
+  type                     = "ingress"
+}
+
+# EKS Control Plane Security Group Rule Cluster Engress
+resource "aws_security_group_rule" "eks_cluster_egress_cluster" {
+  description              = "Allow cluster control plane to send communication to the worker Kubelets and pods"
+  from_port                = 1025
+  protocol                 = "tcp"
+  security_group_id        = "${var.security_group_id}"
+  source_security_group_id = "${aws_security_group.eks_node_security_group.id}"
+  to_port                  = 65535
+  type                     = "egress"
+}
+
+
+### Compute Resources
+
+# EKS Cluster
+resource "aws_eks_cluster" "eks_cluster" {
+  name = "${var.cluster_name}"
+
+  role_arn = "${aws_iam_role.eks_cluster_role.arn}"
+
+  vpc_config {
+    subnet_ids         = ["${var.kubernetes_subnets}"]
+    security_group_ids = ["${var.security_group_id}"]
+  }
+}
+
 # EKS Node AMI
 data "aws_ami" "eks-worker-node" {
   filter {
     name   = "name"
-    values = ["eks-worker-*"]
+    values = ["amazon-eks-node-*"]
   }
 
   most_recent = true
@@ -149,34 +175,19 @@ data "aws_ami" "eks-worker-node" {
 #EKS Node User Data
 locals {
   eks-node-userdata = <<EOF
-#!/bin/bash -xe
-CA_CERTIFICATE_DIRECTORY=/etc/kubernetes/pki
-CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt
-mkdir -p $CA_CERTIFICATE_DIRECTORY
-echo "${aws_eks_cluster.eks-cluster.certificate_authority.0.data}" | base64 -d >  $CA_CERTIFICATE_FILE_PATH
-INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-cluster.endpoint},g /var/lib/kubelet/kubeconfig
-sed -i s,CLUSTER_NAME,${var.cluster_name},g /var/lib/kubelet/kubeconfig
-sed -i s,REGION,${var.eks_region},g /etc/systemd/system/kubelet.service
-sed -i s,MAX_PODS,20,g /etc/systemd/system/kubelet.service
-sed -i s,MASTER_ENDPOINT,${aws_eks_cluster.eks-cluster.endpoint},g /etc/systemd/system/kubelet.service
-sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service
-DNS_CLUSTER_IP=10.100.0.10
-if [[ $INTERNAL_IP == 10.* ]] ; then DNS_CLUSTER_IP=172.20.0.10; fi
-sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g /etc/systemd/system/kubelet.service
-sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig
-sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service
-systemctl daemon-reload
-systemctl restart kubelet
+#!/bin/bash
+set -o xtrace
+/etc/eks/bootstrap.sh ${var.cluster_name}
 EOF
 }
 
-#EKS Launch Configuration
+#EKS Node Launch Configuration
 resource "aws_launch_configuration" "eks_node_launch_config" {
   associate_public_ip_address = true
   iam_instance_profile        = "${aws_iam_instance_profile.eks_instance_profile.name}"
   image_id                    = "${data.aws_ami.eks-worker-node.id}"
   instance_type               = "${var.node_size}"
+  key_name                    = "${var.key_name}"
   name_prefix                 = "eks-node-launch-configuration"
   security_groups             = ["${aws_security_group.eks_node_security_group.id}"]
   user_data_base64            = "${base64encode(local.eks-node-userdata)}"
@@ -186,13 +197,14 @@ resource "aws_launch_configuration" "eks_node_launch_config" {
   }
 }
 
+#EKS Node AutoScaling Group
 resource "aws_autoscaling_group" "eks_node_autoscaling_group" {
-  desired_capacity     = 2
+  desired_capacity     = "${var.desired_nodes}"
   launch_configuration = "${aws_launch_configuration.eks_node_launch_config.id}"
-  max_size             = 2
-  min_size             = 1
+  max_size             = "${var.min_nodes}"
+  min_size             = "${var.max_nodes}"
   name                 = "eks-node-autoscaling-group"
-  vpc_zone_identifier = ["${var.kubernetes_subnets}"]
+  vpc_zone_identifier  = ["${var.kubernetes_subnets}"]
 
   tag {
     key                 = "Name"
@@ -205,13 +217,18 @@ resource "aws_autoscaling_group" "eks_node_autoscaling_group" {
     value               = "owned"
     propagate_at_launch = true
   }
+
+  depends_on = ["aws_eks_cluster.eks_cluster"]
 }
+
+### Container Registry Resources ###
 
 # Elastic Container Registry
 resource "aws_ecr_repository" "ecr_repository" {
-  name = "bar"
+  name = "kubernetes-images"
 }
 
+# Elastic Container Registry Policy
 resource "aws_ecr_repository_policy" "ecr_repository_policy" {
   repository = "${aws_ecr_repository.ecr_repository.name}"
 
@@ -245,12 +262,40 @@ resource "aws_ecr_repository_policy" "ecr_repository_policy" {
 EOF
 }
 
-output "endpoint" {
-  value = "${aws_eks_cluster.eks_cluster.endpoint}"
+### Kubernetes Configuration ###
+
+# AWS Auth ConfigMap
+data "template_file" "aws_auth_cm" {
+  template = "${file("${path.module}/aws-auth-cm.yaml")}"
+
+  vars {
+    node_role_arn = "${aws_iam_role.eks_node_role.arn}"
+  }
 }
 
-output "kubeconfig-certificate-authority-data" {
-  value = "${aws_eks_cluster.eks_cluster.certificate_authority.0.data}"
+# Local CLI Command to Configure EKS Cluster
+resource "null_resource" "kubectl_config" {
+  provisioner "local-exec" {
+    command = "aws eks --region ${var.eks_region} update-kubeconfig --name ${var.cluster_name}"
+  }
+
+  provisioner "local-exec" {
+    command = "echo \"${data.template_file.aws_auth_cm.rendered}\" > ${path.module}/${var.cluster_name}-aws-auth-cm.yaml"
+  }
+
+  provisioner "local-exec" {
+    command = "kubectl apply -f ${path.module}/${var.cluster_name}-aws-auth-cm.yaml"
+  }
+
+  depends_on = [
+    "aws_eks_cluster.eks_cluster"
+  ]
+}
+
+### Outputs ###
+
+output "endpoint" {
+  value = "${aws_eks_cluster.eks_cluster.endpoint}"
 }
 
 output "ecr_name" {

@@ -1,0 +1,15 @@
+﻿VariableName,VariableValue,Type,Variable Description
+aws_access_key,xxxxxxxxxxxxxxxxxxxx,String,The AWS Access Key
+aws_secret_key,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,String,The AWS Secret Key
+aws_region,eu-west-2,String,The AWS Region
+environment_tag,Production,String,An environment tag for the instances
+owner_tag,<Owner>,String,An owner tag for the instances
+availability_zones,"eu-west-2a, eu-west-2b, eu-west-2c",List,A list of availability zones for the Kubernetes worker nodes
+vpc_cidr,10.0.0.0/16,String,A cidr for the eks vpc
+subnet_cidrs,"10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24",List,A list of subnet cidrs for the Kubernetes worker nodes
+cluster_name,<Cluster_Name>,String,The name of the EKS cluster
+key_name,<Key_Name>,String,The name of EC2 key pair for the worker nodes
+node_size,t3.micro,String,The ec2 instance size for the Kubernetes worker nodes
+min_nodes,1,String,The minimum number of Kubernetes worker nodes
+max_nodes,1,String,The maximum number of Kubernetes worker nodes
+desired_nodes,1,String,The desired number of Kubernetes worker nodes

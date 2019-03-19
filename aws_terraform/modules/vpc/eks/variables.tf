@@ -1,8 +1,19 @@
-variable "availability_zones" {}
-variable "vpc_cidr" {}
-variable "kubernetes_subnet_cidrs" {}
-variable "pipeline_subnet_cidrs" {}
-variable "environment_tag" {}
-variable "owner_tag" {}
+variable "availability_zones" {
+  type = "list"
+}
 
+variable "vpc_cidr" {
+  type = "string"
+}
 
+variable "subnet_cidrs" {
+  type = "list"
+}
+
+variable "environment_tag" {
+  type = "string"
+}
+
+variable "owner_tag" {
+  type = "string"
+}

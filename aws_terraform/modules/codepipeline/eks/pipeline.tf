@@ -1,5 +1,4 @@
 resource "aws_iam_role" "codebuild_role" {
-  count = "${signum(var.aws_pipeline)}"
   name = "kubernetes-codebuild-role"
 
   assume_role_policy = <<EOF
@@ -19,7 +18,6 @@ EOF
 }
 
 resource "aws_iam_role_policy" "codebuild_policy" {
-  count = "${signum(var.aws_pipeline)}"
   role = "${aws_iam_role.codebuild_role.name}"
 
   policy = <<POLICY
@@ -54,14 +52,12 @@ POLICY
 }
 
 resource "aws_security_group" "codebuild_security_group" {
-  count = "${signum(var.aws_pipeline)}"
   name        = "pipeline-codebuild-sg"
   description = "Default Code Build Security Group"
   vpc_id      = "${var.vpc_id}"
 }
 
 resource "aws_codebuild_project" "codebuild" {
-  count = "${signum(var.aws_pipeline)}"
   name          = "Build-Docker-Image"
   description   = "Builds Docker Images and Pushes to ECR."
   build_timeout = "60"
@@ -115,13 +111,11 @@ resource "aws_codebuild_project" "codebuild" {
 }
 
 resource "aws_s3_bucket" "codepipeline_bucket" {
-  count = "${signum(var.aws_pipeline)}"
   bucket = "kubernetes-codepipeline-artifacts"
   acl    = "private"
 }
 
 resource "aws_iam_role" "codepipeline_role" {
-  count = "${signum(var.aws_pipeline)}"
   name = "kubernetes-codepipeline-role"
 
   assume_role_policy = <<EOF
@@ -141,7 +135,6 @@ EOF
 }
 
 resource "aws_iam_role_policy" "codepipeline_policy" {
-  count = "${signum(var.aws_pipeline)}"
   name = "codepipeline_policy"
   role = "${aws_iam_role.codepipeline_role.id}"
 
@@ -173,7 +166,6 @@ EOF
 }
 
 resource "aws_codepipeline" "codepipeline" {
-  count = "${signum(var.aws_pipeline)}"
   name     = "kubernetes-codepipeline"
   role_arn = "${aws_iam_role.codepipeline_role.arn}"
 
