@@ -1,0 +1,193 @@
+fervice:
+  name: ${file(src/${self:custom.environment}/configs/config.yaml):serviceName}
+
+frameworkVersion: ">=1.1.0 <2.0.0"
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  memorySize: 256
+  stage: ${file(src/${self:custom.environment}/configs/config.yaml):stage}
+  region: ${file(src/${self:custom.environment}/configs/config.yaml):region}
+  profile: ${file(src/${self:custom.environment}/configs/config.yaml):profile}
+  iamRoleStatements: ${file(src/${self:custom.environment}/configs/config.yaml):iamPolicy}
+  stackTags: ${file(src/${self:custom.environment}/configs/config.yaml):tags}
+
+package:
+  excludeDevDependencies: false
+  individually: true
+  exclude:
+    - "**"
+
+plugins:
+  - serverless-domain-manager
+  - serverless-plugin-split-stacks
+  - serverless-aws-documentation
+  - serverless-plugin-include-dependencies
+  
+custom:
+
+  environment: dev
+
+  splitStacks:
+    perFunction: false
+    perType: true
+
+  customDomain:
+    domainName: ${file(src/${self:custom.environment}/configs/config.yaml):domain}
+    basePath: ${file(src/${self:custom.environment}/configs/config.yaml):basePath}
+    stage: ${file(src/${self:custom.environment}/configs/config.yaml):stage}
+    createRoute53Record: true
+    certificateName: cert_name
+    
+  documentation:
+    info:
+      version: 1.0.0
+      title: API Name
+      description: Description for the API
+      contact:
+        name: Ryan
+        url: https://blog.cloudpea.co.uk
+      license:
+        name: CloudPea
+        url: https://blog.cloudpea.co.uk
+    
+    models:
+      -
+        name: functionResponse
+        description: Description for the swagger model
+        contentType: application/json
+        schema: ${file(src/${self:custom.environment}/models/docs_spec_response.json)} # Location to the swagger schema for this model
+
+functions:
+
+  # Example function
+  exampleFunction:
+    handler: src/${self:custom.environment}/handlers/handler.functionName
+    name: ${self:custom.serviceName}-${file(src/${self:custom.environment}/configs/config.yaml):stage}-function-name
+    description: Function description
+    timeout: 30
+    memorySize: 2048
+    environment: ${file(src/${self:custom.environment}/configs/config.yaml):functionEnvVariables.functionName} # This is the function environment variables
+    tags: ${file(src/${self:custom.environment}/configs/config.yaml):tags} # Tags for the functions
+    events:
+
+      # HTTP endpoint for this function
+      - http:
+          path: /function/endpoint
+          method: GET
+
+          # This is to verify that the request is correct, verify a token or something
+          authorizer:
+            name: authorizerName # This relates to the fucntion name for the authorizer
+            resultTtlInSeconds: 0
+            identitySource: method.request.header.Authorization
+          request:
+            parameters:
+              headers:
+                Content-Type: true
+
+          # From the serverless-aws-documentation plugin
+          # Defines the swagger docs for this function
+          documentation:
+            summary: Summary for endpoint
+            description: Description for endpoint
+            tags:
+              - Tag for swagger spec (heading)
+            methodResponses:
+              -
+                statusCode: "200"
+                responseBody:
+                  description: Ok, the request was successful
+                responseModels:
+                  application/json: functionResponse
+
+      # CloudWatch event triggers
+      - schedule:
+          name: schedule-name
+          description: Schedule description
+          rate: rate(1 hour) # Run every hour
+
+      # CloudWatch event triggers
+      - schedule:
+          name: schedule-name
+          description: Schedule description
+          rate: cron(0 10 * * ? *) # Run at 10:00 am (UTC) every day
+  
+  # Documentation function to give hack the swagger spec
+  docsSpec:
+    handler: src/${self:custom.environment}/handlers/docs_handler.docsSpec
+    name: ${self:custom.serviceName}-${file(src/${self:custom.environment}/configs/config.yaml):stage}-docs-spec
+    description: This function displays the Swagger docs spec
+    timeout: 30
+    environment: ${file(src/${self:custom.environment}/configs/config.yaml):functionEnvVariables.docsSpec}
+    tags: ${file(src/${self:custom.environment}/configs/config.yaml):tags}
+    events:
+      - http:
+          path: /docs/spec
+          method: GET
+          request:
+            parameters:
+              headers:
+                Content-Type: true
+          documentation:
+            summary: Docs
+            description: This endpoint displays the Swagger docs spec
+            tags:
+              - Docs
+            methodResponses:
+              -
+                statusCode: "200"
+                responseBody:
+                  description: Ok, the request was successful and you should receive the swagger docs spec
+                responseModels:
+                  application/json: docsSpecResponse
+
+resources:
+
+  # From here on is just CloudFormation in YAML
+  Resources:
+    GatewayResponse401:
+        Type: "AWS::ApiGateway::GatewayResponse"
+        Properties:
+            RestApiId:
+                Ref: ApiGatewayRestApi
+            ResponseType: UNAUTHORIZED
+            StatusCode: 401
+            ResponseParameters:
+                gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+                application/json: "{\"statusCode\": 401,\"endpoint\": \"$context.path\",\"response\": {\"errorType\": \"Authentication\",\"errorMessage\": \"Invalid token, please use the endpoint below to get a valid token\",\"tokenEndpoint\": \"/core/v1/auth\" }}"
+    GatewayResponse403AccessDenied:
+        Type: "AWS::ApiGateway::GatewayResponse"
+        Properties:
+            RestApiId:
+                Ref: ApiGatewayRestApi
+            ResponseType: ACCESS_DENIED
+            StatusCode: 403
+            ResponseParameters:
+                gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+                application/json: "{\"statusCode\": 403,\"endpoint\": \"$context.path\",\"response\": {\"errorType\": \"Authorization\",\"errorMessage\": \"You are not authorized to access this endpoint, you may not have the correct permissions\" }}"
+    GatewayResponse404:
+        Type: "AWS::ApiGateway::GatewayResponse"
+        Properties:
+            RestApiId:
+                Ref: ApiGatewayRestApi
+            ResponseType: DEFAULT_4XX
+            StatusCode: 404
+            ResponseParameters:
+                gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+                application/json: "{\"statusCode\": 404,\"endpoint\": \"$context.path\",\"response\": {\"errorType\": \"Endpoint\",\"errorMessage\": \"This endpoint does not exist\" }}"
+    GatewayResponse500:
+        Type: "AWS::ApiGateway::GatewayResponse"
+        Properties:
+            RestApiId:
+                Ref: ApiGatewayRestApi
+            ResponseType: DEFAULT_5XX
+            StatusCode: 500
+            ResponseParameters:
+                gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+                application/json: "{\"statusCode\": 500,\"endpoint\": \"$context.path\",\"response\": {\"errorType\": \"Internal Server\",\"errorMessage\": $context.error.messageString }}"

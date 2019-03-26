@@ -1,0 +1,57 @@
+
+# The name and service name
+name: cloud
+serviceName: cloud-api
+version: 2.1.0
+
+# AWS account to deploy to
+awsAccountId: "XXXXXXXXXXXX"
+region: eu-west-2
+profile: account_test
+
+# API Gateway Stage
+stage: test
+
+# Resource tags
+tags:
+  owner: ${file(src/configs/${self:custom.environment}/config.yaml):owner}
+  department: CTO Office
+  environment: ${self:custom.environment}
+  application: ${file(src/configs/${self:custom.environment}/config.yaml):serviceName}
+  monitored: "no"
+
+# The owner
+owner: Ryan Froggatt
+
+# API domain
+domain: api.api-test.cloudpea.co.uk
+basePath: ${file(src/configs/${self:custom.environment}/config.yaml):name}
+    
+# All function variables
+functionEnvVariables:
+  exampleFunction:
+    acceptedIpRanges: 185.12.194.0/24#86.176.240.42/32#81.151.198.37/32#80.3.154.189/32#81.151.197.242/32
+    apiName: cloud_api
+  docSpec:
+    acceptedIpRanges: 185.12.194.0/24#86.176.240.42/32#81.151.198.37/32#80.3.154.189/32#81.151.197.242/32
+    apiName: cloud_api
+ 
+# IAM policy for Lambda role
+iamPolicy:
+  - Effect: Allow
+    Action:
+      - apigateway:GET
+    Resource:
+      - arn:aws:apigateway:${file(src/configs/${self:custom.environment}/config.yaml):region}::/restapis/*
+
+  - Effect: Allow
+    Action:
+      - dynamodb:GetItem
+    Resource:
+      - arn:aws:dynamodb:${file(src/configs/${self:custom.environment}/config.yaml):region}:${file(src/configs/${self:custom.environment}/config.yaml):awsAccountId}:table/exampleTable
+
+  - Effect: Allow
+    Action:
+      - dynamodb:PutItem
+    Resource:
+      - arn:aws:dynamodb:${file(src/configs/${self:custom.environment}/config.yaml):region}:${file(src/configs/${self:custom.environment}/config.yaml):awsAccountId}:table/exampleTable
