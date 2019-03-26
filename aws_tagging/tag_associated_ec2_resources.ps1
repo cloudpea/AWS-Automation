@@ -31,11 +31,11 @@ Write-Output ""
 
 #Get All EC2 Instances
 Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")] Gathering all EC2 Instances in account..."
-foreach ($reg in Get-AWSRegion) {
-    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")]" "Processing Region $reg"
+foreach ($region in Get-AWSRegion) {
+    Write-Output "[$(get-date -Format "dd/mm/yy hh:mm:ss")]" "Processing Region $region"
 
     #Process Each Instance
-    foreach ($Instance in (Get-EC2Instance -Region $reg).instances) {
+    foreach ($Instance in (Get-EC2Instance -Region $region).instances) {
         
         #Get Instance Tags
         $Tags = $Instance.Instances.Tags
@@ -48,47 +48,39 @@ foreach ($reg in Get-AWSRegion) {
         
 
         #Get Associated EBS Volumes
-        $Volumes = Get-EC2Volume -Region $reg | Where-Object {$_.Attachment.InstanceId -eq $InstanceId}
+        $Volumes = Get-EC2Volume -Region $region | Where-Object {$_.Attachment.InstanceId -eq $InstanceId}
 
         #Write Tags to Associated EBS Volumes
         foreach ($Volume in $Volumes) {           
-            New-EC2Tag -Region $reg -Resource $Volume.VolumeId -Tag $Tags
+            New-EC2Tag -Region $region -Resource $Volume.VolumeId -Tag $Tags
         }
-#    }
-#}
-
-
 
         #Get Associated Snapshots for EBS Volumes
         foreach ($Volume in $Volumes) {
-            $Snapshots = Get-EC2Snapshot -Region $reg | Where-Object {$_.VolumeId -eq $Volume.VolumeId}
+            $Snapshots = Get-EC2Snapshot -Region $region | Where-Object {$_.VolumeId -eq $Volume.VolumeId}
 
             #Write Tags to Associated Snapshots if Snapshots Exist
             If ($Snapshots -ne $null) {
                 foreach ($Snapshot in $Snapshots) {
-                    New-EC2Tag -Region $reg -Resource $Snapshot.SnapshotId -Tag $Tags
+                    New-EC2Tag -Region $region -Resource $Snapshot.SnapshotId -Tag $Tags
                 }
             }
         }
-
-
 
         #Write Tags to Associated Network Interfaces
         $Interfaces = $Instance.Instances.NetworkInterfaces
 
         foreach ($Interface in $Interfaces) {
-            New-EC2Tag -Region $reg -Resource $Interface.NetworkInterfaceId -Tag $Tags
+            New-EC2Tag -Region $region -Resource $Interface.NetworkInterfaceId -Tag $Tags
         }
 
-
-
         #Write Tags to Assocaited Elastic IPs
-        $ElasticIPs = Get-EC2Address -Region $reg | Where-Object {$_.InstanceId -eq $InstanceId}
+        $ElasticIPs = Get-EC2Address -Region $region | Where-Object {$_.InstanceId -eq $InstanceId}
 
         #If Elastic IPs Exist Write Tags to each IP
         If ($ElasticIPs -ne $null) {
             foreach ($IP in $ElasticIPs) {
-                New-EC2Tag -Region $reg -Resource $IP.AllocationId -Tag $Tags
+                New-EC2Tag -Region $region -Resource $IP.AllocationId -Tag $Tags
             }
         }
     }
