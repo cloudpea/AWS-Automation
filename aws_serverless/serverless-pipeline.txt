@@ -1,0 +1,12 @@
+
+Build Pipeline
+Step 1 - Get Azure / AWS Credentials
+serverless config credentials --provider aws/azure --key aws_access_key_id --secret aws_secret_access_key
+
+Step 2 - Package Serverless Deployment
+serverless package --stage {Environment} --region {Region} --package ~/serverless/{BuildID}/
+
+
+Release Pipeline
+Step 1 - Deploy Serverless Deployment Package
+serverless deploy --package ~/serverless/{BuildID}/
